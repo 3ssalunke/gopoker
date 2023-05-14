@@ -32,8 +32,20 @@ type MessageEncDeck struct {
 	Deck [][]byte
 }
 
+type MessagePlayerAction struct {
+	CurrentGameStatus GameStatus
+	Action            PlayerAction
+	Value             int
+}
+
+type MessagePreFlop struct{}
+
+func (msg MessagePreFlop) String() string {
+	return "MSG: PREFLOP"
+}
+
 type MessageReady struct{}
 
 func (msg MessageReady) String() string {
-	return "Ready"
+	return "MSG: Ready"
 }

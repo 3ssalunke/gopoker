@@ -168,7 +168,7 @@ func (s *Server) SendHandshake(p *Peer) error {
 	hs := &Handshake{
 		Version:     s.Version,
 		GameVariant: s.GameVariant,
-		GameStatus:  s.gameState.currentStatus,
+		GameStatus:  GameStatus(s.gameState.currentStatus.Get()),
 		ListenAddr:  s.ListenAddr,
 	}
 
@@ -238,21 +238,40 @@ func (s *Server) handleMessage(msg *Message) error {
 	switch v := msg.Payload.(type) {
 	case MessagePeerList:
 		return s.handlePeerList(v)
+	case MessageEncDeck:
+		return s.handleMsgEncDeck(msg.From, v)
 	case MessageReady:
-		return nil
+		return s.handleMsgReady(msg.From)
+	case MessagePreFlop:
+		return s.handleMsgPreFlop()
+	case MessagePlayerAction:
+		return s.handleMsgPlayerAction(msg.From, v)
 	default:
 		return fmt.Errorf("invalid payload type")
 	}
 }
 
-func (s *Server) handleEncDeck(from string, msg MessageEncDeck) error {
+func (s *Server) handleMsgPreFlop() error {
+	s.gameState.setStatus(GameStatusPreflop)
+	return nil
+}
+
+func (s *Server) handleMsgReady(from string) error {
+	s.gameState.SetPlayerReady(from)
+	return nil
+}
+
+func (s *Server) handleMsgPlayerAction(from string, msg MessagePlayerAction) error {
+	return s.gameState.handlePlayerAction(from, msg)
+}
+
+func (s *Server) handleMsgEncDeck(from string, msg MessageEncDeck) error {
 	logrus.WithFields(logrus.Fields{
 		"addr":    s.ListenAddr,
 		"from":    from,
 		"payload": msg,
 	}).Info("received enc deck message")
-	// return s.gameState.ShuffleAndEncrypt(from, msg.Deck)
-	return nil
+	return s.gameState.ShuffleAndEncrypt(from, msg.Deck)
 }
 
 func (s *Server) handlePeerList(l MessagePeerList) error {
@@ -331,4 +350,6 @@ func init() {
 	gob.Register(MessagePeerList{})
 	gob.Register(MessageEncDeck{})
 	gob.Register(MessageReady{})
+	gob.Register(MessagePreFlop{})
+	gob.Register(MessagePlayerAction{})
 }
