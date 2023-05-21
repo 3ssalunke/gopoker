@@ -7,8 +7,11 @@ import (
 	"net"
 	"sync"
 
+	"github.com/3ssalunke/gopoker/proto"
 	"github.com/sirupsen/logrus"
 )
+
+const defaultMaxPlayers = 6
 
 type GameVariant uint
 
@@ -36,6 +39,7 @@ type ServerConfig struct {
 	ListenAddr    string
 	ApiListenAddr string
 	GameVariant   GameVariant
+	MaxPlayers    int
 }
 
 type Server struct {
@@ -47,11 +51,16 @@ type Server struct {
 	addPeer     chan *Peer
 	delPeer     chan *Peer
 	msgCh       chan *Message
-	gameState   *Game
+	gameState   *GameState
 	broadcastCh chan BroadcastTo
+
+	proto.UnimplementedGossipServer
 }
 
 func NewServer(cfg ServerConfig) *Server {
+	if cfg.MaxPlayers == 0 {
+		cfg.MaxPlayers = defaultMaxPlayers
+	}
 	s := &Server{
 		ServerConfig: cfg,
 		peers:        make(map[string]*Peer),
@@ -86,9 +95,9 @@ func (s *Server) Start() {
 	go s.loop()
 
 	logrus.WithFields(logrus.Fields{
-		"port":    s.ListenAddr,
-		"variant": s.GameVariant,
-		// "gameStatus": s.gameState.gameStatus,
+		"port":       s.ListenAddr,
+		"variant":    s.GameVariant,
+		"maxPlayers": s.MaxPlayers,
 	}).Info("p2p server started running")
 
 	s.transport.ListenAndAccept()
@@ -110,19 +119,27 @@ func (s *Server) loop() {
 			delete(s.peers, peer.listenAddr)
 
 		case msg := <-s.msgCh:
-			if err := s.handleMessage(msg); err != nil {
-				panic(err)
-			}
+			go func() {
+				if err := s.handleMessage(msg); err != nil {
+					panic(err)
+				}
+			}()
 
 		case msg := <-s.broadcastCh:
-			if err := s.Broadcast(msg); err != nil {
-				logrus.Errorf("broadcast error: %s", err)
-			}
+			go func() {
+				if err := s.Broadcast(msg); err != nil {
+					logrus.Errorf("broadcast error: %s", err)
+				}
+			}()
 		}
 	}
 }
 
 func (s *Server) handleNewPeer(peer *Peer) error {
+	if len(s.peers) >= s.MaxPlayers {
+		return fmt.Errorf("server is full. max players exceeded (%d)", s.MaxPlayers)
+	}
+
 	hs, err := s.handshake(peer)
 
 	if err != nil {
