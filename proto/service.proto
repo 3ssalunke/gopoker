@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+option go_package = "github.com/3ssalunke/gopoker/proto";
+
+service Gossip{
+    rpc Handshake(Version) returns (Version);
+}
+
+message Version{
+    string version = 1;
+    int32 gameVariant = 2;
+    int32 gameStatus = 3;
+    string listenAddr = 4;
+}

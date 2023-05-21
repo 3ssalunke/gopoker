@@ -25,34 +25,23 @@ func makeServerAndStart(addr string, apiAddr string) *p2p.Node {
 func main() {
 	node1 := makeServerAndStart(":3000", ":3001")
 	node2 := makeServerAndStart(":4000", ":4001")
+	node3 := makeServerAndStart(":5000", ":5001")
+	node4 := makeServerAndStart(":6000", ":6001")
 
 	err := node2.Connect(node1.ListenAddr)
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// playerA := makeServerAndStart(":3000", ":3001")
-	// playerB := makeServerAndStart(":4000", ":4001")
-	// playerC := makeServerAndStart(":5000", ":5001")
-	// playerD := makeServerAndStart(":6000")
-	// playerE := makeServerAndStart(":7000")
+	err = node3.Connect(node2.ListenAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// if err := playerB.Connect(playerA.ListenAddr); err != nil {
-	// 	log.Fatal(err)
-	// }
-	// time.Sleep(time.Second * 1)
-	// if err := playerC.Connect(playerB.ListenAddr); err != nil {
-	// 	log.Fatal(err)
-	// }
-	// time.Sleep(time.Second * 1)
-	// if err := playerD.Connect(playerA.ListenAddr); err != nil {
-	// 	log.Fatal(err)
-	// }
-	// time.Sleep(time.Second * 2)
-	// if err := playerE.Connect(playerA.ListenAddr); err != nil {
-	// 	log.Fatal(err)
-	// }
+	err = node4.Connect(node1.ListenAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	select {}
 }
