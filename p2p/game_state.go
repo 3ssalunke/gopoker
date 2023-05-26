@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/3ssalunke/gopoker/proto"
 	"github.com/sirupsen/logrus"
 )
 
@@ -179,7 +180,7 @@ type GameState struct {
 	table *Table
 }
 
-func NewGame(addr string, broadcastCh chan BroadcastTo) *GameState {
+func NewGameState(addr string, broadcastCh chan BroadcastTo) *GameState {
 	g := &GameState{
 		listenAddr:    addr,
 		broadcastCh:   broadcastCh,
@@ -213,6 +214,7 @@ func (g *GameState) loop() {
 			"currentDealer":     currentDealer,
 			"currentPlayerTurn": g.currentPlayerTurn.Get(),
 			"table":             g.table,
+			"players":           g.playersList,
 		}).Info()
 	}
 }
@@ -285,8 +287,11 @@ func (g *GameState) TakeAction(action PlayerAction, value int) error {
 }
 
 func (g *GameState) advanceToNextRound() {
-	// g.recvPlayerActions.clear()
 	g.currentPlayerAction.Set(int32(PlayerActionNone))
+	if GameStatus(g.currentStatus.Get()) == GameStatusRiver {
+		g.TakeSeatAtTable()
+		return
+	}
 	g.currentStatus.Set(int32(g.getNextGameStatus()))
 }
 
@@ -361,13 +366,15 @@ func (g *GameState) ShuffleAndEncrypt(from string, deck [][]byte) error {
 	return nil
 }
 
-func (g *GameState) SetReady() {
+func (g *GameState) TakeSeatAtTable() {
 	pos := g.playersList.getIndex(g.listenAddr)
 	g.table.AddPlayerInPosition(g.listenAddr, pos)
 
 	// g.playersReady.addRecvStatus(g.listenAddr)
 	g.playersReadyList.add(g.listenAddr)
-	g.SendToPlayer(MessageReady{}, g.getOtherPlayers()...)
+	g.SendToPlayer(&proto.TakeSeat{
+		Addr: g.listenAddr,
+	}, g.getOtherPlayers()...)
 	g.setStatus(GameStatusPlayerReady)
 }
 
@@ -377,7 +384,7 @@ func (g *GameState) mayBeDeal() {
 	}
 }
 
-func (g *GameState) SetPlayerReady(addr string) {
+func (g *GameState) SetPlayerAtTable(addr string) {
 	pos := g.playersList.getIndex(addr)
 	g.table.AddPlayerInPosition(addr, pos)
 

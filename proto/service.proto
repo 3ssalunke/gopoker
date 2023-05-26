@@ -4,11 +4,24 @@ option go_package = "github.com/3ssalunke/gopoker/proto";
 
 service Gossip{
     rpc Handshake(Version) returns (Version);
+    rpc HandleEncDeck(EncDeck) returns(Ack);
+    rpc HandleTakeSeat(TakeSeat) returns (Ack);
 }
+
+message Ack{}
 
 message Version{
     string version = 1;
     int32 gameVariant = 2;
     int32 gameStatus = 3;
     string listenAddr = 4;
+    repeated string peerList = 5;
+}
+
+message EncDeck{
+    repeated bytes deck = 1;
+}
+
+message TakeSeat{
+    string addr = 1;
 }
